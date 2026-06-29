@@ -18,11 +18,20 @@ public class ApiKeyFilter extends OncePerRequestFilter {
     private static final int MAX_REQUESTS_PER_MINUTE = 100;
     private final Map<String, Integer> requestCounts = new ConcurrentHashMap<>();
     private final Map<String, Long> requestTimes = new ConcurrentHashMap<>();
+
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
+        String path = request.getRequestURI();
+        if (path.startsWith("/dashboard") ||
+                path.startsWith("/h2-console") ||
+                path.startsWith("/mock")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String requestApiKey = request.getHeader("X-API-KEY");
 

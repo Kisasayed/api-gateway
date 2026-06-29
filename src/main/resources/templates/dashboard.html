@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>API Gateway Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background: #f4f4f4; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        th { background: #4CAF50; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .anomaly { color: red; font-weight: bold; }
+        .normal { color: green; }
+        button { margin-top: 20px; padding: 10px 20px; background: #008CBA; color: white; border: none; cursor: pointer; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+<h1>API Gateway Dashboard</h1>
+
+<table>
+    <tr>
+        <th>ID</th>
+        <th>URL</th>
+        <th>Method</th>
+        <th>Status</th>
+        <th>Response Time (ms)</th>
+        <th>Client IP</th>
+        <th>Anomaly</th>
+        <th>Reason</th>
+    </tr>
+    <tr th:each="log : ${logs}">
+        <td th:text="${log.id}"></td>
+        <td th:text="${log.targetUrl}"></td>
+        <td th:text="${log.httpMethod}"></td>
+        <td th:text="${log.responseStatus}"></td>
+        <td th:text="${log.responseTimeMs}"></td>
+        <td th:text="${log.clientIp}"></td>
+        <td th:text="${log.isAnomaly}"
+            th:class="${log.isAnomaly} ? 'anomaly' : 'normal'">
+        <td th:text="${log.anomalyReason}"></td>
+    </tr>
+</table>
+
+<div th:if="${analysis}" style="margin-top: 20px; padding: 15px; background: white; border-left: 5px solid #008CBA;">
+    <h2>AI Analysis Result</h2>
+    <p th:text="${analysis}"></p>
+</div>
+
+<form action="/dashboard/analyze" method="post">
+    <button type="submit">Analyze with AI</button>
+</form>
+
+</body>
+</html>
