@@ -24,4 +24,5 @@ public class RequestLog {
     private Boolean isAnomaly;
     private String anomalyReason;
     private String clientIp;
+    private String username;
 }

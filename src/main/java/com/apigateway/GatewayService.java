@@ -1,5 +1,7 @@
 package com.apigateway;
-
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -14,7 +16,7 @@ public class GatewayService {
 
     private RestTemplate restTemplate = new RestTemplate();
 
-    public String forwardRequest(String targetUrl, String httpMethod) {
+    public String forwardRequest(String targetUrl, String httpMethod, String token) {
 
         LocalDateTime start = LocalDateTime.now();
         long startTime = System.currentTimeMillis();
@@ -22,8 +24,14 @@ public class GatewayService {
         String response = "";
         int statusCode = 200;
 
+        HttpHeaders headers = new HttpHeaders();
+        if (token != null) {
+            headers.set("Authorization", token);
+        }
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
         try {
-            ResponseEntity<String> result = restTemplate.getForEntity(targetUrl, String.class);
+            ResponseEntity<String> result = restTemplate.exchange(targetUrl, HttpMethod.GET, entity, String.class);
             response = result.getBody();
             statusCode = result.getStatusCode().value();
         } catch (Exception e) {
@@ -53,7 +61,7 @@ public class GatewayService {
         return response;
     }
 
-    public java.util.List<RequestLog> getAllLogs() {
-        return repository.findAll();
+    public java.util.List<RequestLog> getAllLogs() { // reqlog objects in list , one per db row
+        return repository.findAll(); // will return this to the dashboard controller
     }
 }

@@ -28,7 +28,8 @@ public class ApiKeyFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         if (path.startsWith("/dashboard") ||
                 path.startsWith("/h2-console") ||
-                path.startsWith("/mock")) {
+                path.startsWith("/mock") ||
+                path.startsWith("/auth")) {
             filterChain.doFilter(request, response);
             return;
         }
