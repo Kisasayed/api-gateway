@@ -24,6 +24,9 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private RequestLogRepository requestLogRepository;
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
 
@@ -40,38 +43,70 @@ public class AuthController {
         return ResponseEntity.ok("User registered successfully");
     }
 
-        @PostMapping("/login")
-        public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-            User user = userRepository.findByUsername(loginRequest.getUsername())
-                    .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        System.out.println("LOGIN API HIT");
 
-            if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPasswordHash())) {
-                throw new RuntimeException("Invalid username or password");
-            }
+        User user = userRepository.findByUsername(loginRequest.getUsername()).orElse(null);
 
-            String accessToken = jwtUtil.generateToken(user.getUsername());
-
-            RefreshToken refreshToken = new RefreshToken();
-            refreshToken.setToken(UUID.randomUUID().toString());
-            refreshToken.setUser(user);
-            refreshToken.setExpiryDate(LocalDateTime.now().plusDays(7));
-            refreshToken.setRevoked(false);
-            refreshTokenRepository.save(refreshToken);
-
-            Map<String, String> response = new HashMap<>();
-            response.put("accessToken", accessToken);
-            response.put("refreshToken", refreshToken.getToken());
-
-            return ResponseEntity.ok(response);
+        if (user == null) {
+            logLoginAttempt(loginRequest.getUsername(), false, "Invalid username");
+            return ResponseEntity.status(401).body("Invalid username or password");
         }
+
+        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPasswordHash())) {
+            logLoginAttempt(loginRequest.getUsername(), false, "Incorrect password");
+            return ResponseEntity.status(401).body("Invalid username or password");
+        }
+
+        String accessToken = jwtUtil.generateToken(user.getUsername());
+
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setToken(UUID.randomUUID().toString());
+        refreshToken.setUser(user);
+        refreshToken.setExpiryDate(LocalDateTime.now().plusDays(7));
+        refreshToken.setRevoked(false);
+        refreshTokenRepository.save(refreshToken);
+
+        logLoginAttempt(user.getUsername(), true, "");
+
+        Map<String, String> response = new HashMap<>();
+        response.put("accessToken", accessToken);
+        response.put("refreshToken", refreshToken.getToken());
+
+        return ResponseEntity.ok(response);
+    }
+    private void logLoginAttempt(String username, boolean success, String reason) {
+        RequestLog log = new RequestLog();
+        log.setUsername(username);
+        log.setTargetUrl("/auth/login");
+        log.setHttpMethod("POST");
+        log.setTimestamp(LocalDateTime.now());
+        log.setResponseStatus(success ? 200 : 401);
+        log.setIsAnomaly(!success);
+        log.setAnomalyReason(reason);
+        log.setClientIp("unknown");
+        requestLogRepository.save(log);
+    }
+
+    @GetMapping("/test")
+    public String test() {
+        System.out.println("TEST HIT");
+        return "OK";
+    }
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(@RequestBody RefreshTokenRequest request) {
-        RefreshToken oldToken = refreshTokenRepository.findByToken(request.getRefreshToken())
-                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+        RefreshToken oldToken = refreshTokenRepository.findByToken(request.getRefreshToken()).orElse(null);
+
+        if (oldToken == null) {
+            logRefreshAttempt("unknown", false, "Invalid refresh token");
+            return ResponseEntity.status(401).body("Invalid refresh token");
+        }
 
         if (oldToken.isRevoked() || oldToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Refresh token expired or revoked");
+            logRefreshAttempt(oldToken.getUser().getUsername(), false, "Refresh token expired or revoked");
+            return ResponseEntity.status(401).body("Refresh token expired or revoked");
         }
 
         oldToken.setRevoked(true);
@@ -86,10 +121,25 @@ public class AuthController {
         newRefreshToken.setRevoked(false);
         refreshTokenRepository.save(newRefreshToken);
 
+        logRefreshAttempt(oldToken.getUser().getUsername(), true, "");
+
         Map<String, String> response = new HashMap<>();
         response.put("accessToken", newAccessToken);
         response.put("refreshToken", newRefreshToken.getToken());
 
         return ResponseEntity.ok(response);
     }
+
+    private void logRefreshAttempt(String username, boolean success, String reason) {
+        RequestLog log = new RequestLog();
+        log.setUsername(username);
+        log.setTargetUrl("/auth/refresh");
+        log.setHttpMethod("POST");
+        log.setTimestamp(LocalDateTime.now());
+        log.setResponseStatus(success ? 200 : 401);
+        log.setIsAnomaly(!success);
+        log.setAnomalyReason(reason);
+        log.setClientIp("unknown");
+        requestLogRepository.save(log);
     }
+}

@@ -1,5 +1,6 @@
 package com.apigateway;
 import java.util.List;
+import java.time.LocalDateTime;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -7,4 +8,5 @@ import org.springframework.stereotype.Repository;
 public interface RequestLogRepository extends JpaRepository<RequestLog, Long> {
     List<RequestLog> findTop10ByOrderByTimestampDesc();
 
+    List<RequestLog> findByTimestampBetween(LocalDateTime start, LocalDateTime end);
 }

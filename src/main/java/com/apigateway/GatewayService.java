@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.ResponseEntity;
 import java.time.LocalDateTime;
+import org.springframework.http.ResponseEntity;
 
 @Service
 public class GatewayService {
@@ -15,8 +16,7 @@ public class GatewayService {
     RequestLogRepository repository;
 
     private RestTemplate restTemplate = new RestTemplate();
-
-    public String forwardRequest(String targetUrl, String httpMethod, String token) {
+    public ResponseEntity<String> forwardRequest(String targetUrl, String httpMethod, String token) {
 
         LocalDateTime start = LocalDateTime.now();
         long startTime = System.currentTimeMillis();
@@ -28,6 +28,7 @@ public class GatewayService {
         if (token != null) {
             headers.set("Authorization", token);
         }
+        headers.set("X-Internal-Call", "true");
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
@@ -58,7 +59,7 @@ public class GatewayService {
 
         repository.save(log);
 
-        return response;
+        return ResponseEntity.status(statusCode).body(response);
     }
 
     public java.util.List<RequestLog> getAllLogs() { // reqlog objects in list , one per db row

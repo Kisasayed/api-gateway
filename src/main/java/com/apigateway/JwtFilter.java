@@ -21,6 +21,9 @@ public class JwtFilter extends OncePerRequestFilter {
     private JwtUtil jwtUtil;
 
     @Autowired
+    private RateLimiterService rateLimiterService;
+
+    @Autowired
     private RequestLogRepository requestLogRepository;
 
     @Autowired
@@ -32,6 +35,7 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        System.out.println("JwtFilter ran for: " + request.getRequestURI());
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -46,6 +50,27 @@ public class JwtFilter extends OncePerRequestFilter {
 
             if (userRepository.findByUsername(username).isEmpty()) {
                 throw new RuntimeException("User not found");
+            }
+
+            String internalCallHeader = request.getHeader("X-Internal-Call");
+            boolean isInternalCall = "true".equals(internalCallHeader);
+
+            if (!isInternalCall && !rateLimiterService.isAllowed(username)) {
+                RequestLog log = new RequestLog();
+                log.setUsername(username);
+                log.setTargetUrl(request.getRequestURI());
+                log.setHttpMethod(request.getMethod());
+                log.setTimestamp(LocalDateTime.now());
+                log.setResponseStatus(429);
+                log.setIsAnomaly(true);
+                log.setAnomalyReason("Rate limit exceeded");
+                log.setClientIp(request.getRemoteAddr());
+                requestLogRepository.save(log);
+
+                response.setStatus(429);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Rate limit exceeded\"}");
+                return;
             }
 
             UsernamePasswordAuthenticationToken authToken =

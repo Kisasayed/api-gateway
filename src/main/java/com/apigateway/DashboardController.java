@@ -4,8 +4,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Controller
@@ -14,22 +17,30 @@ public class DashboardController {
     @Autowired
     private RequestLogRepository requestLogRepository;
 
-    @Autowired
-    private AiService aiService;
-
     @GetMapping("/dashboard")
     public String showDashboard(Model model) {
-        List<RequestLog> logs = requestLogRepository.findTop10ByOrderByTimestampDesc();
-        model.addAttribute("logs", logs);
-        return "dashboard";
-    }
 
-    @PostMapping("/dashboard/analyze")
-    public String analyzeTraffic(Model model) {
-        List<RequestLog> logs = requestLogRepository.findTop10ByOrderByTimestampDesc();
-        model.addAttribute("logs", logs);
-        String analysis = aiService.analyzeTraffic();
-        model.addAttribute("analysis", analysis);
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
+
+        List<RequestLog> todaysLogs = requestLogRepository.findByTimestampBetween(startOfDay, endOfDay);
+
+        List<RequestLog> successfulLogs = new ArrayList<>();
+        List<RequestLog> unsuccessfulLogs = new ArrayList<>();
+
+        for (RequestLog log : todaysLogs) {
+            int status = log.getResponseStatus();
+            if (status >= 200 && status < 300) {
+                successfulLogs.add(log);
+            } else {
+                unsuccessfulLogs.add(log);
+            }
+        }
+
+        model.addAttribute("totalRequests", todaysLogs.size());
+        model.addAttribute("successfulLogs", successfulLogs);
+        model.addAttribute("unsuccessfulLogs", unsuccessfulLogs);
+
         return "dashboard";
     }
 }
