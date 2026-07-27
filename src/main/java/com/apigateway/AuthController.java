@@ -25,12 +25,13 @@ public class AuthController {
     private JwtUtil jwtUtil;
 
     @Autowired
-    private RequestLogRepository requestLogRepository;
+    private RequestLogService requestLogService;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
 
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            logRegisterAttempt(request.getUsername(), false, "Username already taken");
             return ResponseEntity.badRequest().body("Username already taken");
         }
 
@@ -40,12 +41,13 @@ public class AuthController {
 
         userRepository.save(user);
 
+        logRegisterAttempt(user.getUsername(), true, "");
+
         return ResponseEntity.ok("User registered successfully");
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-        System.out.println("LOGIN API HIT");
 
         User user = userRepository.findByUsername(loginRequest.getUsername()).orElse(null);
 
@@ -86,7 +88,19 @@ public class AuthController {
         log.setIsAnomaly(!success);
         log.setAnomalyReason(reason);
         log.setClientIp("unknown");
-        requestLogRepository.save(log);
+        requestLogService.saveLog(log);
+    }
+    private void logRegisterAttempt(String username, boolean success, String reason) {
+        RequestLog log = new RequestLog();
+        log.setUsername(username);
+        log.setTargetUrl("/auth/register");
+        log.setHttpMethod("POST");
+        log.setTimestamp(LocalDateTime.now());
+        log.setResponseStatus(success ? 200 : 400);
+        log.setIsAnomaly(!success);
+        log.setAnomalyReason(reason);
+        log.setClientIp("unknown");
+        requestLogService.saveLog(log);
     }
 
     @GetMapping("/test")
@@ -140,6 +154,6 @@ public class AuthController {
         log.setIsAnomaly(!success);
         log.setAnomalyReason(reason);
         log.setClientIp("unknown");
-        requestLogRepository.save(log);
+        requestLogService.saveLog(log);
     }
 }

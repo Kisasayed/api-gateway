@@ -24,7 +24,7 @@ public class JwtFilter extends OncePerRequestFilter {
     private RateLimiterService rateLimiterService;
 
     @Autowired
-    private RequestLogRepository requestLogRepository;
+    private RequestLogService requestLogService;
 
     @Autowired
     private UserRepository userRepository;
@@ -65,7 +65,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 log.setIsAnomaly(true);
                 log.setAnomalyReason("Rate limit exceeded");
                 log.setClientIp(request.getRemoteAddr());
-                requestLogRepository.save(log);
+                requestLogService.saveLog(log);
 
                 response.setStatus(429);
                 response.setContentType("application/json");
@@ -89,7 +89,7 @@ public class JwtFilter extends OncePerRequestFilter {
             log.setIsAnomaly(false);
             log.setClientIp(request.getRemoteAddr());
 
-            requestLogRepository.save(log);
+            requestLogService.saveLog(log);
 
         } catch (ExpiredJwtException e) {
 
@@ -105,7 +105,7 @@ public class JwtFilter extends OncePerRequestFilter {
             log.setAnomalyReason("Token expired");
             log.setClientIp(request.getRemoteAddr());
 
-            requestLogRepository.save(log);
+            requestLogService.saveLog(log);
 
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
@@ -123,7 +123,7 @@ public class JwtFilter extends OncePerRequestFilter {
             log.setAnomalyReason("Invalid token");
             log.setClientIp(request.getRemoteAddr());
 
-            requestLogRepository.save(log);
+            requestLogService.saveLog(log);
 
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
