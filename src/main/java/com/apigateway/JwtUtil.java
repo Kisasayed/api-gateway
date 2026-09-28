@@ -6,7 +6,8 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
@@ -28,6 +29,15 @@ public class JwtUtil {
                 .setSubject(username)
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(expiryMillis))
+                .signWith(secretKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+    public String generateRefreshToken(String username) {
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("type", "refresh")
+                .setIssuedAt(new Date())
+                .setExpiration(Date.from(Instant.now().plus(7, ChronoUnit.DAYS)))
                 .signWith(secretKey, SignatureAlgorithm.HS256)
                 .compact();
     }

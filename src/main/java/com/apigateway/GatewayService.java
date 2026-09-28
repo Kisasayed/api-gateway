@@ -1,11 +1,9 @@
 package com.apigateway;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.http.ResponseEntity;
+
 import java.time.LocalDateTime;
 import org.springframework.http.ResponseEntity;
 
@@ -48,7 +46,7 @@ public class GatewayService {
         log.setTimestamp(start);
         log.setResponseStatus(statusCode);
         log.setResponseTimeMs(responseTime);
-        if (statusCode == 401 || statusCode == 429) {
+        if (statusCode == HttpStatus.UNAUTHORIZED.value() || statusCode == HttpStatus.TOO_MANY_REQUESTS.value()) {
             log.setIsAnomaly(true);
             log.setAnomalyReason(statusCode == 401 ? "Unauthorized access" : "Rate limit exceeded");
         } else {
