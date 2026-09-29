@@ -32,6 +32,7 @@ public class JwtUtil {
                 .signWith(secretKey, SignatureAlgorithm.HS256)
                 .compact();
     }
+
     public String generateRefreshToken(String username) {
         return Jwts.builder()
                 .setSubject(username)
@@ -42,13 +43,20 @@ public class JwtUtil {
                 .compact();
     }
 
-    public String extractUsername(String token) {
-        Claims claims = Jwts.parserBuilder()
+    public Claims extractAllClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(secretKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
 
-        return claims.getSubject();
+    public String extractUsername(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    public boolean isRefreshToken(String token) {
+        Claims claims = extractAllClaims(token);
+        return "refresh".equals(claims.get("type"));
     }
 }

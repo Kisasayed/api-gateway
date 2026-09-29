@@ -1,5 +1,4 @@
 package com.apigateway;
-import java.util.UUID;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,13 +18,13 @@ public class AuthController {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private RefreshTokenRepository refreshTokenRepository;
-
-    @Autowired
     private JwtUtil jwtUtil;
 
     @Autowired
     private RequestLogService requestLogService;
+
+    @Autowired
+    private AuthService authService;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
@@ -62,22 +61,17 @@ public class AuthController {
         }
 
         String accessToken = jwtUtil.generateToken(user.getUsername());
-
-        RefreshToken refreshToken = new RefreshToken();
-        refreshToken.setToken(UUID.randomUUID().toString());
-        refreshToken.setUser(user);
-        refreshToken.setExpiryDate(LocalDateTime.now().plusDays(7));
-        refreshToken.setRevoked(false);
-        refreshTokenRepository.save(refreshToken);
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
 
         logLoginAttempt(user.getUsername(), true, "");
 
         Map<String, String> response = new HashMap<>();
         response.put("accessToken", accessToken);
-        response.put("refreshToken", refreshToken.getToken());
+        response.put("refreshToken", refreshToken);
 
         return ResponseEntity.ok(response);
     }
+
     private void logLoginAttempt(String username, boolean success, String reason) {
         RequestLog log = new RequestLog();
         log.setUsername(username);
@@ -90,6 +84,7 @@ public class AuthController {
         log.setClientIp("unknown");
         requestLogService.saveLog(log);
     }
+
     private void logRegisterAttempt(String username, boolean success, String reason) {
         RequestLog log = new RequestLog();
         log.setUsername(username);
@@ -111,49 +106,6 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(@RequestBody RefreshTokenRequest request) {
-        RefreshToken oldToken = refreshTokenRepository.findByToken(request.getRefreshToken()).orElse(null);
-
-        if (oldToken == null) {
-            logRefreshAttempt("unknown", false, "Invalid refresh token");
-            return ResponseEntity.status(401).body("Invalid refresh token");
-        }
-
-        if (oldToken.isRevoked() || oldToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            logRefreshAttempt(oldToken.getUser().getUsername(), false, "Refresh token expired or revoked");
-            return ResponseEntity.status(401).body("Refresh token expired or revoked");
-        }
-
-        oldToken.setRevoked(true);
-        refreshTokenRepository.save(oldToken);
-
-        String newAccessToken = jwtUtil.generateToken(oldToken.getUser().getUsername());
-
-        RefreshToken newRefreshToken = new RefreshToken();
-        newRefreshToken.setToken(UUID.randomUUID().toString());
-        newRefreshToken.setUser(oldToken.getUser());
-        newRefreshToken.setExpiryDate(LocalDateTime.now().plusDays(7));
-        newRefreshToken.setRevoked(false);
-        refreshTokenRepository.save(newRefreshToken);
-
-        logRefreshAttempt(oldToken.getUser().getUsername(), true, "");
-
-        Map<String, String> response = new HashMap<>();
-        response.put("accessToken", newAccessToken);
-        response.put("refreshToken", newRefreshToken.getToken());
-
-        return ResponseEntity.ok(response);
-    }
-
-    private void logRefreshAttempt(String username, boolean success, String reason) {
-        RequestLog log = new RequestLog();
-        log.setUsername(username);
-        log.setTargetUrl("/auth/refresh");
-        log.setHttpMethod("POST");
-        log.setTimestamp(LocalDateTime.now());
-        log.setResponseStatus(success ? 200 : 401);
-        log.setIsAnomaly(!success);
-        log.setAnomalyReason(reason);
-        log.setClientIp("unknown");
-        requestLogService.saveLog(log);
+        return authService.refreshAccessToken(request.getRefreshToken());
     }
 }
